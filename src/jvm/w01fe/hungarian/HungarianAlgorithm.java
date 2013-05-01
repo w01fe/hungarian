@@ -12,11 +12,13 @@
  * a.k.a. Maximum Weighted Maximum Cardinality Bipartite Matching].
  *
  * [It can be used as a method call from within any main (or other function).]
- * It takes 2 arguments:
- * a. A 2-D array (could be rectangular or square).
+ * It takes two arguments:
+ * a. A 2D array (could be rectangular or square) with all values >= 0.
  * b. A string ("min" or "max") specifying whether you want the min or max assignment.
- * [It returns an assignment matrix[array.length][2] that contains the row and col of
- * the elements (in the original inputted array) that make up the optimum assignment.]
+ * [It returns an assignment matrix[min(array.length, array[0].length)][2] that contains
+ * the row and col of the elements (in the original inputted array) that make up the
+ * optimum assignment.]  <--- this may have changed (to output the min/max sum) depending
+ * on which code is highlighted or commented out.
  *  
  * [This version contains only scarce comments. If you want to understand the 
  * inner workings of the algorithm, get the tutorial version of the algorithm
@@ -263,9 +265,9 @@ public class HungarianAlgorithm {
 			}
 		}
 
-		//If you want to return the min or max sum, in your own main method
-		//instead of the assignment array, then use the following code:
-
+		//The following code returns the min/max sum (cost/profit of the assignment)
+		//instead of the assignment array.  Note that the return type of this
+		//method should be double if using this.
 		double sum = 0; 
 		for (int i=0; i<assignment.length; i++)
 		{
@@ -273,8 +275,10 @@ public class HungarianAlgorithm {
 		}
 		return sum;
 
-		//Of course you must also change the header of the method to:
-		//public static double hgAlgorithm (double[][] array, String sumType)
+		//Alternatively (perhaps preferably), you can return the assignment
+		//array to take advantage of the actual assignments, or calculate
+		//the sum outside of this method.  Use the following line of code
+		//and change the return type of this method to double[][]:
 
 		//return assignment;
 	}
@@ -597,7 +601,37 @@ public class HungarianAlgorithm {
 	}
 
 	public static void set(double [][] arr, int i, int j, double v) {arr[i][j] = v;}
+
 	//***********//
 	//MAIN METHOD//
 	//***********//
+
+	public static void main(String[] args) {
+		System.out.println("Running two tests on three arrays:\n");
+
+		// Square
+		double[][] test1 = {{10,19, 8,15},
+							{10,18, 7,17},
+							{13,16, 9,14},
+							{14,17,10,19}};
+		// Tall
+		double[][] test2 = {{10,19, 8,15},
+							{10,18, 7,17},
+							{13,16, 9,14},
+							{12,19, 8,18},
+							{14,17,10,19}};
+		// Wide
+		double[][] test3 = {{10,19,8,15,14},
+							{10,18,7,17,17},
+							{13,16,9,14,10},
+							{12,19,8,18,19}};
+
+		System.out.println(hgAlgorithm(test1, "min"));
+		System.out.println(hgAlgorithm(test1, "max"));
+		System.out.println(hgAlgorithm(test2, "min"));
+		System.out.println(hgAlgorithm(test2, "max"));
+		System.out.println(hgAlgorithm(test3, "min"));
+		System.out.println(hgAlgorithm(test3, "max"));
+	}
+
 }
