@@ -31,6 +31,9 @@
  * Feel free to redistribute this source code, as long as this header--with
  * the exception of sections in brackets--remains as part of the file.
  * 
+ * Note: Some sections in brackets have been modified as not to provie misinformation
+ *       about the current functionality of this code.
+ * 
  * Requirements: JDK 1.5.0_01 or better.
  * [Created in Eclipse 3.1M6 (www.eclipse.org).]
  * 
