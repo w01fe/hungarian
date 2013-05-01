@@ -137,31 +137,47 @@ public class HungarianAlgorithm {
 		return copy;
 	}
 	public static double[][] copyToSquare	//Creates a copy of an array, made square by padding the right or bottom.
-	(double[][] original, double padValue) {
+	(double[][] original, double padValue)
+	{
 		int rows = original.length;
 		int cols = original[0].length;	//Assume we're given a rectangular array.
 		double[][] result = null;
 
-		if(rows == cols) {			//The matrix is already square.
+		if (rows == cols)	//The matrix is already square.
+		{
 			result = copyOf(original);
-		} else if(rows > cols) {	//Pad on some extra columns on the right.
+		}
+		else if (rows > cols)	//Pad on some extra columns on the right.
+		{	
 			result = new double[rows][rows];
-			for(int i=0; i<rows; i++) {
-				for(int j=0; j<rows; j++) {
-					if(j >= cols) {	// Use the padValue to fill the right columns
+			for (int i=0; i<rows; i++)
+			{
+				for (int j=0; j<rows; j++)
+				{
+					if (j >= cols)	//Use the padValue to fill the right columns.
+					{
 						result[i][j] = padValue;
-					} else {
+					}
+					else
+					{
 						result[i][j] = original[i][j];
 					}
 				}
 			}
-		} else {	// rows < cols; Pad on some extra rows at the bottom.
+		}
+		else
+		{	// rows < cols; Pad on some extra rows at the bottom.
 			result = new double[cols][cols];
-			for(int i=0; i<cols; i++) {
-				for(int j=0; j<cols; j++) {
-					if(i >= rows) {	// Use the padValue to fill the bottom rows
+			for (int i=0; i<cols; i++)
+			{
+				for (int j=0; j<cols; j++)
+				{
+					if (i >= rows)	//Use the padValue to fill the bottom rows.
+					{
 						result[i][j] = padValue;
-					} else {
+					}
+					else
+					{
 						result[i][j] = original[i][j];
 					}
 				}
@@ -177,7 +193,11 @@ public class HungarianAlgorithm {
 
 	public static double hgAlgorithm (double[][] array, String sumType)
 	{
-		double[][] cost = copyOf(array);	//Create the cost matrix
+		double forbiddenValue = -1;	//Double.MAX_VALUE is not ideal, since arithmetic
+									//will be performed with this.  Should be larger
+									//or smaller than all matrix values. (i.e. -1 or 999999)
+
+		double[][] cost = copyToSquare(array, forbiddenValue);	//Create the cost matrix
 
 		if (sumType.equalsIgnoreCase("max"))	//Then array is weight array. Must change to cost.
 		{
@@ -186,7 +206,7 @@ public class HungarianAlgorithm {
 			{
 				for (int j=0; j<cost[i].length; j++)
 				{
-					cost [i][j] = (maxWeight - cost [i][j]);
+					cost[i][j] = (maxWeight - cost[i][j]);
 				}
 			}
 		}
@@ -195,7 +215,7 @@ public class HungarianAlgorithm {
 		int[] rowCover = new int[cost.length];					//The row covering vector.
 		int[] colCover = new int[cost[0].length];				//The column covering vector.
 		int[] zero_RC = new int[2];								//Position of last zero from Step 4.
-				int [][] path = new int[cost.length * cost[0].length + 2][2];
+				int[][] path = new int[cost.length * cost[0].length + 2][2];
 		int step = 1;											
 		boolean done = false;
 		while (done == false)	//main execution loop
@@ -227,14 +247,18 @@ public class HungarianAlgorithm {
 		}//end while
 
 		int[][] assignment = new int[array.length][2];	//Create the returned array.
+		int assignmentCount = 0;	//In a input matrix taller than it is wide, the first
+									//assignment column will have to skip some numbers, so
+									//the index will not always match the first column ([0])
 		for (int i=0; i<mask.length; i++)
 		{
 			for (int j=0; j<mask[i].length; j++)
 			{
-				if (mask[i][j] == 1)
+				if (i < array.length && j < array[0].length && mask[i][j] == 1)
 				{
-					assignment[i][0] = i;
-					assignment[i][1] = j;
+					assignment[assignmentCount][0] = i;
+					assignment[assignmentCount][1] = j;
+					assignmentCount++;
 				}
 			}
 		}
