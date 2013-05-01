@@ -136,6 +136,40 @@ public class HungarianAlgorithm {
 
 		return copy;
 	}
+	public static double[][] copyToSquare	//Creates a copy of an array, made square by padding the right or bottom.
+	(double[][] original, double padValue) {
+		int rows = original.length;
+		int cols = original[0].length;	//Assume we're given a rectangular array.
+		double[][] result = null;
+
+		if(rows == cols) {			//The matrix is already square.
+			result = copyOf(original);
+		} else if(rows > cols) {	//Pad on some extra columns on the right.
+			result = new double[rows][rows];
+			for(int i=0; i<rows; i++) {
+				for(int j=0; j<rows; j++) {
+					if(j >= cols) {	// Use the padValue to fill the right columns
+						result[i][j] = padValue;
+					} else {
+						result[i][j] = original[i][j];
+					}
+				}
+			}
+		} else {	// rows < cols; Pad on some extra rows at the bottom.
+			result = new double[cols][cols];
+			for(int i=0; i<cols; i++) {
+				for(int j=0; j<cols; j++) {
+					if(i >= rows) {	// Use the padValue to fill the bottom rows
+						result[i][j] = padValue;
+					} else {
+						result[i][j] = original[i][j];
+					}
+				}
+			}
+		}
+
+		return result;
+	}
 
 	//**********************************//
 	//METHODS OF THE HUNGARIAN ALGORITHM//
