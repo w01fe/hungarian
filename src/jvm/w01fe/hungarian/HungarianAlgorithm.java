@@ -31,7 +31,7 @@
  * Feel free to redistribute this source code, as long as this header--with
  * the exception of sections in brackets--remains as part of the file.
  * 
- * Note: Some sections in brackets have been modified as not to provie misinformation
+ * Note: Some sections in brackets have been modified as not to provide misinformation
  *       about the current functionality of this code.
  * 
  * Requirements: JDK 1.5.0_01 or better.
@@ -196,7 +196,8 @@ public class HungarianAlgorithm {
 	//METHODS OF THE HUNGARIAN ALGORITHM//
 	//**********************************//
 
-	public static double hgAlgorithm (double[][] array, String sumType)
+	//Core of the algorithm; takes required inputs and returns the assignments
+	public static int[][] hgAlgorithmAssignments(double[][] array, String sumType)
 	{
 		double forbiddenValue = -1;	//Double.MAX_VALUE is not ideal, since arithmetic
 									//will be performed with this.  Should be larger
@@ -251,9 +252,9 @@ public class HungarianAlgorithm {
 			}
 		}//end while
 
-		int[][] assignment = new int[array.length][2];	//Create the returned array.
+		int[][] assignments = new int[array.length][2];	//Create the returned array.
 		int assignmentCount = 0;	//In a input matrix taller than it is wide, the first
-									//assignment column will have to skip some numbers, so
+									//assignments column will have to skip some numbers, so
 									//the index will not always match the first column ([0])
 		for (int i=0; i<mask.length; i++)
 		{
@@ -261,29 +262,30 @@ public class HungarianAlgorithm {
 			{
 				if (i < array.length && j < array[0].length && mask[i][j] == 1)
 				{
-					assignment[assignmentCount][0] = i;
-					assignment[assignmentCount][1] = j;
+					assignments[assignmentCount][0] = i;
+					assignments[assignmentCount][1] = j;
 					assignmentCount++;
 				}
 			}
 		}
 
-		//The following code returns the min/max sum (cost/profit of the assignment)
-		//instead of the assignment array.  Note that the return type of this
-		//method should be double if using this.
+		return assignments;
+	}
+	//Calls hgAlgorithmAssignments and getAssignmentSum to compute the
+	//minimum cost or maximum profit possible.
+	public static double hgAlgorithm(double[][] array, String sumType)
+	{
+		return getAssignmentSum(array, hgAlgorithmAssignments(array, sumType));
+	}
+	public static double getAssignmentSum(double[][] array, int[][] assignments) {
+		//Returns the min/max sum (cost/profit of the assignment) given the
+		//original input matrix and an assignment array (from hgAlgorithmAssignments)
 		double sum = 0; 
-		for (int i=0; i<assignment.length; i++)
+		for (int i=0; i<assignments.length; i++)
 		{
-			sum = sum + array[assignment[i][0]][assignment[i][1]];
+			sum = sum + array[assignments[i][0]][assignments[i][1]];
 		}
 		return sum;
-
-		//Alternatively (perhaps preferably), you can return the assignment
-		//array to take advantage of the actual assignments, or calculate
-		//the sum outside of this method.  Use the following line of code
-		//and change the return type of this method to double[][]:
-
-		//return assignment;
 	}
 	public static int hg_step1(int step, double[][] cost)
 	{
