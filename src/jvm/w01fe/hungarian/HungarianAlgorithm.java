@@ -1,5 +1,6 @@
 /*
  * Created on Apr 25, 2005
+ * Updated on May 2, 2013 (support for rectangular matrices)
  * 
  * Konstantinos A. Nedas
  * Department of Spatial Information Science & Engineering
@@ -17,8 +18,8 @@
  * b. A string ("min" or "max") specifying whether you want the min or max assignment.
  * [It returns an assignment matrix[min(array.length, array[0].length)][2] that contains
  * the row and col of the elements (in the original inputted array) that make up the
- * optimum assignment.]  <--- this may have changed (to output the min/max sum) depending
- * on which code is highlighted or commented out.
+ * optimum assignment or the sum of the assignment weights, depending on which method
+ * is used: hgAlgorithmAssignments or hgAlgorithm, respectively.]
  *  
  * [This version contains only scarce comments. If you want to understand the 
  * inner workings of the algorithm, get the tutorial version of the algorithm
@@ -100,9 +101,8 @@ public class HungarianAlgorithm {
 			}
 		}
 	}
-	public static double findLargest		//Finds the largest element in a positive array.
+	public static double findLargest		//Finds the largest element in a 2D array.
 	(double[][] array)
-	//works for arrays where all values are >= 0.
 	{
 		double largest = Double.NEGATIVE_INFINITY;
 		for (int i=0; i<array.length; i++)
@@ -199,20 +199,21 @@ public class HungarianAlgorithm {
 	//Core of the algorithm; takes required inputs and returns the assignments
 	public static int[][] hgAlgorithmAssignments(double[][] array, String sumType)
 	{
-		double forbiddenValue = -1;	//Double.MAX_VALUE is not ideal, since arithmetic
-									//will be performed with this.  Should be larger
-									//or smaller than all matrix values. (i.e. -1 or 999999)
+		//This variable is used to pad a rectangular array (so it will be picked all last [cost] or first [profit])
+		//and will not interfere with final assignments.  Also, it is used to flip the relationship between weights
+		//when "max" defines it as a profit matrix instead of a cost matrix.  Double.MAX_VALUE is not ideal, since arithmetic
+		//needs to be performed and overflow may occur.
+		double maxWeightPlusOne = findLargest(array) + 1;
 
-		double[][] cost = copyToSquare(array, forbiddenValue);	//Create the cost matrix
+		double[][] cost = copyToSquare(array, maxWeightPlusOne);	//Create the cost matrix
 
-		if (sumType.equalsIgnoreCase("max"))	//Then array is weight array. Must change to cost.
+		if (sumType.equalsIgnoreCase("max"))	//Then array is a profit array.  Must flip the values because the algorithm finds lowest.
 		{
-			double maxWeight = findLargest(cost);
-			for (int i=0; i<cost.length; i++)		//Generate cost by subtracting.
+			for (int i=0; i<cost.length; i++)		//Generate profit by subtracting from some value larger than everything.
 			{
 				for (int j=0; j<cost[i].length; j++)
 				{
-					cost[i][j] = (maxWeight - cost[i][j]);
+					cost[i][j] = (maxWeightPlusOne - cost[i][j]);
 				}
 			}
 		}
@@ -221,7 +222,7 @@ public class HungarianAlgorithm {
 		int[] rowCover = new int[cost.length];					//The row covering vector.
 		int[] colCover = new int[cost[0].length];				//The column covering vector.
 		int[] zero_RC = new int[2];								//Position of last zero from Step 4.
-				int[][] path = new int[cost.length * cost[0].length + 2][2];
+		int[][] path = new int[cost.length * cost[0].length + 2][2];
 		int step = 1;											
 		boolean done = false;
 		while (done == false)	//main execution loop
