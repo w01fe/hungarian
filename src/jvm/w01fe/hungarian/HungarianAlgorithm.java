@@ -1,22 +1,25 @@
 /*
  * Created on Apr 25, 2005
+ * Updated on May 2, 2013 (support for rectangular matrices)
  * 
- * Konstantinos A. Nedas                     
+ * Konstantinos A. Nedas
  * Department of Spatial Information Science & Engineering
  * University of Maine, Orono, ME 04469-5711, USA
  * kostas@spatial.maine.edu
- * http://www.spatial.maine.edu/~kostas       
+ * http://www.spatial.maine.edu/~kostas
  *
  * This Java class implements the Hungarian algorithm [a.k.a Munkres' algorithm,
  * a.k.a. Kuhn algorithm, a.k.a. Assignment problem, a.k.a. Marriage problem,
  * a.k.a. Maximum Weighted Maximum Cardinality Bipartite Matching].
  *
  * [It can be used as a method call from within any main (or other function).]
- * It takes 2 arguments:
- * a. A 2-D array (could be rectangular or square).
+ * It takes two arguments:
+ * a. A 2D array (could be rectangular or square) with all values >= 0.
  * b. A string ("min" or "max") specifying whether you want the min or max assignment.
- * [It returns an assignment matrix[array.length][2] that contains the row and col of
- * the elements (in the original inputted array) that make up the optimum assignment.]
+ * [It returns an assignment matrix[min(array.length, array[0].length)][2] that contains
+ * the row and col of the elements (in the original inputted array) that make up the
+ * optimum assignment or the sum of the assignment weights, depending on which method
+ * is used: hgAlgorithmAssignments or hgAlgorithm, respectively.]
  *  
  * [This version contains only scarce comments. If you want to understand the 
  * inner workings of the algorithm, get the tutorial version of the algorithm
@@ -28,6 +31,9 @@
  * 
  * Feel free to redistribute this source code, as long as this header--with
  * the exception of sections in brackets--remains as part of the file.
+ * 
+ * Note: Some sections in brackets have been modified as not to provide misinformation
+ *       about the current functionality of this code.
  * 
  * Requirements: JDK 1.5.0_01 or better.
  * [Created in Eclipse 3.1M6 (www.eclipse.org).]
@@ -44,7 +50,7 @@ public class HungarianAlgorithm {
 	//********************************//
 	//METHODS FOR CONSOLE INPUT-OUTPUT//
 	//********************************//
-	
+
 	public static int readInput(String prompt)	//Reads input,returns double.
 	{
 		Scanner in = new Scanner(System.in);
@@ -59,22 +65,22 @@ public class HungarianAlgorithm {
 		int hours = (int)floor(time%(24*3600))/(3600);
 		int minutes = (int)floor((time%3600)/60);
 		int seconds = (int)round(time%60);
-		
+
 		if (days > 0)
 			timeElapsed = Integer.toString(days) + "d:";
 		if (hours > 0)
 			timeElapsed = timeElapsed + Integer.toString(hours) + "h:";
 		if (minutes > 0)
 			timeElapsed = timeElapsed + Integer.toString(minutes) + "m:";
-		
+
 		timeElapsed = timeElapsed + Integer.toString(seconds) + "s";
 		System.out.print("\nTotal time required: " + timeElapsed + "\n\n");
 	}
-	
+
 	//*******************************************//
 	//METHODS THAT PERFORM ARRAY-PROCESSING TASKS//
 	//*******************************************//
-	
+
 	public static void generateRandomArray	//Generates random 2-D array.
 	(double[][] array, String randomMethod)	
 	{
@@ -93,11 +99,10 @@ public class HungarianAlgorithm {
 						array[i][j] = array[i][j] + 0.5;				//make elements positive.
 				}
 			}
-		}			
+		}
 	}
-	public static double findLargest		//Finds the largest element in a positive array.
+	public static double findLargest		//Finds the largest element in a 2D array.
 	(double[][] array)
-	//works for arrays where all values are >= 0.
 	{
 		double largest = Double.NEGATIVE_INFINITY;
 		for (int i=0; i<array.length; i++)
@@ -133,140 +138,203 @@ public class HungarianAlgorithm {
 			//Need to do it this way, otherwise it copies only memory location
 			System.arraycopy(original[i], 0, copy[i], 0, original[i].length);
 		}
-		
+
 		return copy;
 	}
-	
-	//**********************************//
-	//METHODS OF THE HUNGARIAN ALGORITHM//
-	//**********************************//
-	
-	public static double hgAlgorithm (double[][] array, String sumType)
+	public static double[][] copyToSquare	//Creates a copy of an array, made square by padding the right or bottom.
+	(double[][] original, double padValue)
 	{
-		double[][] cost = copyOf(array);	//Create the cost matrix
-		
-		if (sumType.equalsIgnoreCase("max"))	//Then array is weight array. Must change to cost.
+		int rows = original.length;
+		int cols = original[0].length;	//Assume we're given a rectangular array.
+		double[][] result = null;
+
+		if (rows == cols)	//The matrix is already square.
 		{
-			double maxWeight = findLargest(cost);
-			for (int i=0; i<cost.length; i++)		//Generate cost by subtracting.
+			result = copyOf(original);
+		}
+		else if (rows > cols)	//Pad on some extra columns on the right.
+		{	
+			result = new double[rows][rows];
+			for (int i=0; i<rows; i++)
 			{
-				for (int j=0; j<cost[i].length; j++)
+				for (int j=0; j<rows; j++)
 				{
-					cost [i][j] = (maxWeight - cost [i][j]);
+					if (j >= cols)	//Use the padValue to fill the right columns.
+					{
+						result[i][j] = padValue;
+					}
+					else
+					{
+						result[i][j] = original[i][j];
+					}
 				}
 			}
 		}
-		
+		else
+		{	// rows < cols; Pad on some extra rows at the bottom.
+			result = new double[cols][cols];
+			for (int i=0; i<cols; i++)
+			{
+				for (int j=0; j<cols; j++)
+				{
+					if (i >= rows)	//Use the padValue to fill the bottom rows.
+					{
+						result[i][j] = padValue;
+					}
+					else
+					{
+						result[i][j] = original[i][j];
+					}
+				}
+			}
+		}
+
+		return result;
+	}
+
+	//**********************************//
+	//METHODS OF THE HUNGARIAN ALGORITHM//
+	//**********************************//
+
+	//Core of the algorithm; takes required inputs and returns the assignments
+	public static int[][] hgAlgorithmAssignments(double[][] array, String sumType)
+	{
+		//This variable is used to pad a rectangular array (so it will be picked all last [cost] or first [profit])
+		//and will not interfere with final assignments.  Also, it is used to flip the relationship between weights
+		//when "max" defines it as a profit matrix instead of a cost matrix.  Double.MAX_VALUE is not ideal, since arithmetic
+		//needs to be performed and overflow may occur.
+		double maxWeightPlusOne = findLargest(array) + 1;
+
+		double[][] cost = copyToSquare(array, maxWeightPlusOne);	//Create the cost matrix
+
+		if (sumType.equalsIgnoreCase("max"))	//Then array is a profit array.  Must flip the values because the algorithm finds lowest.
+		{
+			for (int i=0; i<cost.length; i++)		//Generate profit by subtracting from some value larger than everything.
+			{
+				for (int j=0; j<cost[i].length; j++)
+				{
+					cost[i][j] = (maxWeightPlusOne - cost[i][j]);
+				}
+			}
+		}
+
 		int[][] mask = new int[cost.length][cost[0].length];	//The mask array.
 		int[] rowCover = new int[cost.length];					//The row covering vector.
 		int[] colCover = new int[cost[0].length];				//The column covering vector.
 		int[] zero_RC = new int[2];								//Position of last zero from Step 4.
-                int [][] path = new int[cost.length * cost[0].length + 2][2];
+		int[][] path = new int[cost.length * cost[0].length + 2][2];
 		int step = 1;											
 		boolean done = false;
 		while (done == false)	//main execution loop
-		{ 
+		{
 			switch (step)
-		    {
+			{
 				case 1:
-					step = hg_step1(step, cost);     
-		    	    break;
-		    	case 2:
-		    	    step = hg_step2(step, cost, mask, rowCover, colCover);
+					step = hg_step1(step, cost);	 
 					break;
-		    	case 3:
-		    	    step = hg_step3(step, mask, colCover);
+				case 2:
+					step = hg_step2(step, cost, mask, rowCover, colCover);
 					break;
-		    	case 4:
-		    	    step = hg_step4(step, cost, mask, rowCover, colCover, zero_RC);
+				case 3:
+					step = hg_step3(step, mask, colCover);
 					break;
-		    	case 5:
-			    step = hg_step5(step, mask, rowCover, colCover, zero_RC, path);
+				case 4:
+					step = hg_step4(step, cost, mask, rowCover, colCover, zero_RC);
 					break;
-		    	case 6:
-		    	   	step = hg_step6(step, cost, rowCover, colCover);
+				case 5:
+				step = hg_step5(step, mask, rowCover, colCover, zero_RC, path);
 					break;
-		  	    case 7:
-		    	    done=true;
-		    	    break;
-		    }
+				case 6:
+					step = hg_step6(step, cost, rowCover, colCover);
+					break;
+				case 7:
+					done=true;
+					break;
+			}
 		}//end while
-		
-		int[][] assignment = new int[array.length][2];	//Create the returned array.
+
+		int[][] assignments = new int[array.length][2];	//Create the returned array.
+		int assignmentCount = 0;	//In a input matrix taller than it is wide, the first
+									//assignments column will have to skip some numbers, so
+									//the index will not always match the first column ([0])
 		for (int i=0; i<mask.length; i++)
 		{
 			for (int j=0; j<mask[i].length; j++)
 			{
-				if (mask[i][j] == 1)
+				if (i < array.length && j < array[0].length && mask[i][j] == 1)
 				{
-					assignment[i][0] = i;
-					assignment[i][1] = j;
+					assignments[assignmentCount][0] = i;
+					assignments[assignmentCount][1] = j;
+					assignmentCount++;
 				}
 			}
 		}
-		
-		//If you want to return the min or max sum, in your own main method
-		//instead of the assignment array, then use the following code:
-		
+
+		return assignments;
+	}
+	//Calls hgAlgorithmAssignments and getAssignmentSum to compute the
+	//minimum cost or maximum profit possible.
+	public static double hgAlgorithm(double[][] array, String sumType)
+	{
+		return getAssignmentSum(array, hgAlgorithmAssignments(array, sumType));
+	}
+	public static double getAssignmentSum(double[][] array, int[][] assignments) {
+		//Returns the min/max sum (cost/profit of the assignment) given the
+		//original input matrix and an assignment array (from hgAlgorithmAssignments)
 		double sum = 0; 
-		for (int i=0; i<assignment.length; i++)
+		for (int i=0; i<assignments.length; i++)
 		{
-			sum = sum + array[assignment[i][0]][assignment[i][1]];
+			sum = sum + array[assignments[i][0]][assignments[i][1]];
 		}
 		return sum;
-		
-		//Of course you must also change the header of the method to:
-		//public static double hgAlgorithm (double[][] array, String sumType)
-		
-		//return assignment;
 	}
 	public static int hg_step1(int step, double[][] cost)
 	{
 		//What STEP 1 does:
 		//For each row of the cost matrix, find the smallest element
 		//and subtract it from from every other element in its row. 
-	    
-	   	double minval;
-	   	
+		
+		double minval;
+
 		for (int i=0; i<cost.length; i++)	
-	   	{									
-	   	    minval=cost[i][0];
-	   	    for (int j=0; j<cost[i].length; j++)	//1st inner loop finds min val in row.
-	   	    {
-	   	        if (minval>cost[i][j])
-	   	        {
-	   	            minval=cost[i][j];
-	   	        }
+		{									
+			minval=cost[i][0];
+			for (int j=0; j<cost[i].length; j++)	//1st inner loop finds min val in row.
+			{
+				if (minval>cost[i][j])
+				{
+					minval=cost[i][j];
+				}
 			}
 			for (int j=0; j<cost[i].length; j++)	//2nd inner loop subtracts it.
-	   	    {
-	   	        cost[i][j]=cost[i][j]-minval;
-	   	    }
+			{
+				cost[i][j]=cost[i][j]-minval;
+			}
 		}
-	   			    
+
 		step=2;
 		return step;
 	}
-	public static int hg_step2(int step, double[][] cost, int[][] mask, int[]rowCover, int[] colCover)
+	public static int hg_step2(int step, double[][] cost, int[][] mask, int[] rowCover, int[] colCover)
 	{
 		//What STEP 2 does:
 		//Marks uncovered zeros as starred and covers their row and column.
-		
+
 		for (int i=0; i<cost.length; i++)
-	    {
-	        for (int j=0; j<cost[i].length; j++)
-	        {
-	            if ((cost[i][j]==0) && (colCover[j]==0) && (rowCover[i]==0))
-	            {
-	                mask[i][j]=1;
+		{
+			for (int j=0; j<cost[i].length; j++)
+			{
+				if ((cost[i][j]==0) && (colCover[j]==0) && (rowCover[i]==0))
+				{
+					mask[i][j]=1;
 					colCover[j]=1;
-	                rowCover[i]=1;
+					rowCover[i]=1;
 				}
-	        }
-	    }
-							
+			}
+		}
+
 		clearCovers(rowCover, colCover);	//Reset cover vectors.
-			    
+
 		step=3;
 		return step;
 	}
@@ -274,33 +342,33 @@ public class HungarianAlgorithm {
 	{
 		//What STEP 3 does:
 		//Cover columns of starred zeros. Check if all columns are covered.
-		
+
 		for (int i=0; i<mask.length; i++)	//Cover columns of starred zeros.
-	    {
-	        for (int j=0; j<mask[i].length; j++)
-	        {
-	            if (mask[i][j] == 1)
-	            {
-	                colCover[j]=1;
+		{
+			for (int j=0; j<mask[i].length; j++)
+			{
+				if (mask[i][j] == 1)
+				{
+					colCover[j]=1;
 				}
-	        }
-	    }
-	    
+			}
+		}
+
 		int count=0;						
 		for (int j=0; j<colCover.length; j++)	//Check if all columns are covered.
-	    {
-	        count=count+colCover[j];
-	    }
-		
+		{
+			count=count+colCover[j];
+		}
+
 		if (count>=mask.length)	//Should be cost.length but ok, because mask has same dimensions.	
-	    {
+		{
 			step=7;
 		}
-	    else
+		else
 		{
 			step=4;
 		}
-	    	
+
 		return step;
 	}
 	public static int hg_step4(int step, double[][] cost, int[][] mask, int[] rowCover, int[] colCover, int[] zero_RC)
@@ -309,7 +377,7 @@ public class HungarianAlgorithm {
 		//Find an uncovered zero in cost and prime it (if none go to step 6). Check for star in same row:
 		//if yes, cover the row and uncover the star's column. Repeat until no uncovered zeros are left
 		//and go to step 6. If not, save location of primed zero and go to step 5.
-		
+
 		int[] row_col = new int[2];	//Holds row and col of uncovered zero.
 		boolean done = false;
 		while (done == false)
@@ -323,7 +391,7 @@ public class HungarianAlgorithm {
 			else
 			{
 				mask[row_col[0]][row_col[1]] = 2;	//Prime the found uncovered zero.
-				
+
 				boolean starInRow = false;
 				for (int j=0; j<mask[row_col[0]].length; j++)
 				{
@@ -333,7 +401,7 @@ public class HungarianAlgorithm {
 						row_col[1] = j;		//remember its column.
 					}
 				}
-							
+
 				if (starInRow==true)	
 				{
 					rowCover[row_col[0]] = 1;	//Cover the star's row.
@@ -348,7 +416,7 @@ public class HungarianAlgorithm {
 				}
 			}
 		}
-		
+
 		return step;
 	}
 	public static int[] findUncoveredZero	//Aux 1 for hg_step4.
@@ -356,7 +424,7 @@ public class HungarianAlgorithm {
 	{
 		row_col[0] = -1;	//Just a check value. Not a real index.
 		row_col[1] = 0;
-		
+
 		int i = 0; boolean done = false;
 		while (done == false)
 		{
@@ -377,22 +445,22 @@ public class HungarianAlgorithm {
 				done = true;
 			}
 		}//end outer while
-		
+
 		return row_col;
 	}
-    public static int hg_step5(int step, int[][] mask, int[] rowCover, int[] colCover, int[] zero_RC, int [][] path)
+	public static int hg_step5(int step, int[][] mask, int[] rowCover, int[] colCover, int[] zero_RC, int [][] path)
 	{
 		//What STEP 5 does:	
 		//Construct series of alternating primes and stars. Start with prime from step 4.
 		//Take star in the same column. Next take prime in the same row as the star. Finish
 		//at a prime with no star in its column. Unstar all stars and star the primes of the
 		//series. Erasy any other primes. Reset covers. Go to step 3.
-		
+
 		int count = 0;										//Counts rows of the path matrix.
 		//int[][] path = new int[(mask[0].length + 2)][2];	//Path matrix (stores row and col).
 		path[count][0] = zero_RC[0];						//Row of last prime.
 		path[count][1] = zero_RC[1];						//Column of last prime.
-		
+
 		boolean done = false;
 		while (done == false)
 		{ 
@@ -412,15 +480,15 @@ public class HungarianAlgorithm {
 			{
 				int c = findPrimeInRow(mask, path[count][0]);
 				count = count+1;
-				path[count][0] = path [count-1][0];	//Row of primed zero.
+				path[count][0] = path[count-1][0];	//Row of primed zero.
 				path[count][1] = c;					//Col of primed zero.
 			}
 		}//end while
-		
+
 		convertPath(mask, path, count);
 		clearCovers(rowCover, colCover);
 		erasePrimes(mask);
-		
+
 		step = 3;
 		return step;
 		
@@ -428,7 +496,7 @@ public class HungarianAlgorithm {
 	public static int findStarInCol			//Aux 1 for hg_step5.
 	(int[][] mask, int col)
 	{
-		int r=-1;	//Again this is a check value.
+		int r = -1;	//Again this is a check value.
 		for (int i=0; i<mask.length; i++)
 		{
 			if (mask[i][col]==1)
@@ -436,7 +504,7 @@ public class HungarianAlgorithm {
 				r = i;
 			}
 		}
-				
+
 		return r;
 	}
 	public static int findPrimeInRow		//Aux 2 for hg_step5.
@@ -458,13 +526,13 @@ public class HungarianAlgorithm {
 	{
 		for (int i=0; i<=count; i++)
 		{
-			if (mask[(path[i][0])][(path[i][1])]==1)
+			if (mask[path[i][0]][path[i][1]]==1)
 			{
-				mask[(path[i][0])][(path[i][1])] = 0;
+				mask[path[i][0]][path[i][1]] = 0;
 			}
 			else
 			{
-				mask[(path[i][0])][(path[i][1])] = 1;
+				mask[path[i][0]][path[i][1]] = 1;
 			}
 		}
 	}
@@ -499,9 +567,9 @@ public class HungarianAlgorithm {
 		//What STEP 6 does:
 		//Find smallest uncovered value in cost: a. Add it to every element of covered rows
 		//b. Subtract it from every element of uncovered columns. Go to step 4.
-		
+
 		double minval = findSmallest(cost, rowCover, colCover);
-		
+
 		for (int i=0; i<rowCover.length; i++)
 		{
 			for (int j=0; j<colCover.length; j++)
@@ -537,9 +605,39 @@ public class HungarianAlgorithm {
 		
 		return minval;
 	}
-	
+
 	public static void set(double [][] arr, int i, int j, double v) {arr[i][j] = v;}
+
 	//***********//
 	//MAIN METHOD//
 	//***********//
+
+	public static void main(String[] args) {
+		System.out.println("Running two tests on three arrays:\n");
+
+		// Square
+		double[][] test1 = {{10,19, 8,15},
+							{10,18, 7,17},
+							{13,16, 9,14},
+							{14,17,10,19}};
+		// Tall
+		double[][] test2 = {{10,19, 8,15},
+							{10,18, 7,17},
+							{13,16, 9,14},
+							{12,19, 8,18},
+							{14,17,10,19}};
+		// Wide
+		double[][] test3 = {{10,19,8,15,14},
+							{10,18,7,17,17},
+							{13,16,9,14,10},
+							{12,19,8,18,19}};
+
+		System.out.println(hgAlgorithm(test1, "min"));
+		System.out.println(hgAlgorithm(test1, "max"));
+		System.out.println(hgAlgorithm(test2, "min"));
+		System.out.println(hgAlgorithm(test2, "max"));
+		System.out.println(hgAlgorithm(test3, "min"));
+		System.out.println(hgAlgorithm(test3, "max"));
+	}
+
 }
